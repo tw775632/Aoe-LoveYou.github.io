@@ -1,0 +1,90 @@
+/* ===== 底部 tab（白色纸张风格，与全局统一） ===== */
+.tabbar {
+  /* v3.6.x 恢复用户熟悉的「圆角悬浮卡片」形状（用户反馈满宽贴底方形
+     "形状变了，和原来不一样"）。
+     此前为消除 tabbar 周围透出的页面灰底，先后做过 margin-top:0 / 满宽贴边 /
+     方形圆角；现在改由背景色根治：base.css 浅色 --bg-b 由 #f2f2f2 改为 #ffffff，
+     页面背景纯白后，悬浮卡片的上下左右留白与圆角外都是白色，不再有灰——
+     形状恢复原样且无灰，两种诉求兼得。 */
+  margin-top:10px; display:flex; justify-content:space-around;
+  flex-shrink:0; /* 视口/高度变化时不被 flex 压缩，防止底部栏被挤没 */
+  /* v3.26.x #769 底部导航栏美化：底色/透明度/圆角全部吃 CSS 变量（personalize.js
+     applyTabbarStyle 写入），未设置＝现状观感。color-mix 老内核不支持时回落上一行纯色
+     （同 #562 抽屉口径），行为＝透明度滑杆失效但底色仍可用 */
+  background:var(--tabbar-bg-color, var(--tabbar-base-bg, #ffffff));
+  background:color-mix(in srgb, var(--tabbar-bg-color, var(--tabbar-base-bg, #ffffff)) calc(var(--tabbar-bg-a, 1) * 100%), transparent);
+  border:1px solid rgba(0,0,0,.12);
+  border-radius:var(--tabbar-radius, 22px); padding:8px 6px; z-index:2;
+  /* v3.6.x：去掉 box-shadow——纯白背景上 0 2px 8px rgba(0,0,0,.05) 投影
+     就是卡片下方一道淡灰（用户反馈"形状旁边还有一点灰色"）；
+     有边框已足够区分，无投影更干净（深色模式 dark.css 覆盖同去） */
+}
+/* #769 背景模糊（毛玻璃）＝用户显式开启才有（滑杆 >0 时 personalize.js 挂类）；
+   面积只有一条窄栏，与 #562 抽屉「刻意不加 backdrop-filter」的整屏卡顿红线不冲突 */
+.tabbar.tabbar-blur-on { -webkit-backdrop-filter:blur(var(--tabbar-blur, 10px)); backdrop-filter:blur(var(--tabbar-blur, 10px)); }
+.tabbar .tab {
+  display:flex; align-items:center; justify-content:center; flex:1;
+  color:var(--muted); cursor:pointer; padding:12px 6px; border-radius:14px;
+  transition:color .18s ease, background .18s ease, opacity .18s ease;
+  /* #769 整栏透明度的图标层（personalize.js 已算好 12% 下限，见 applyTabbarStyle） */
+  opacity:var(--tabbar-ico-a, 1);
+}
+.tabbar .tab.active { color:var(--ink); background:transparent; }
+.tabbar .tab svg { width:var(--tabbar-ico-size, 23px); height:var(--tabbar-ico-size, 23px); }
+/* #769 上传的按钮图片：与默认 SVG 同尺寸同槽位（svg 隐藏、img 顶上，见 paintTabIcon），
+   圆角随尺寸等比缩放（23px 档 ≈ 7px，与桌面图标观感一致） */
+.tabbar .tab img { width:var(--tabbar-ico-size, 23px); height:var(--tabbar-ico-size, 23px); object-fit:cover; display:block; border-radius:calc(var(--tabbar-ico-size, 23px) * .3); }
+/* #769 触摸显形（防「栏消失找不回」设计缺陷）：任一透明度 < 50% 时挂 tabbar-faint，
+   按压瞬间描边显形 + 图标全可见——看不见也知道那里有导航、能点 */
+.tabbar.tabbar-faint:active { border-color:rgba(120,120,120,.85); }
+.tabbar.tabbar-faint:active .tab { opacity:1; }
+/* 独立全屏页（聊天等）隐藏底部导航 */
+.tabbar[hidden] { display:none; }
+
+/* 全屏页：隐藏状态栏、去手机内边距；各区块自行对齐 */
+.phone.no-statusbar { padding:0; }
+.phone.no-statusbar .statusbar { display:none; }
+.page.full { padding: 0; }
+
+/* 全屏页内容统一左右 18px 边距（避免内容贴边/飞出屏幕） */
+.page.full .gs-title { padding-left:18px; padding-right:18px; }
+.page.full .set-group { margin-left:18px; margin-right:18px; }
+.page.full .set-title { padding-left:18px; padding-right:18px; }
+.page.full .dc-toggle { margin-left:18px; margin-right:18px; }
+.page.full .card-tabs { padding-left:18px; padding-right:18px; }
+.page.full .card-search { margin-left:18px; margin-right:18px; }
+.page.full .card-list { padding-left:18px; padding-right:18px; }
+.page.full .gs-scroll { padding-left:18px; padding-right:18px; }
+.page.full .chat-item, .page.full .chat-search { margin-left:18px; margin-right:18px; }
+
+/* v3.6.69：字卡库首页（page-chatcard）+ 设置页（page-setting）底部"白条"修复——
+   之前误判根因：以为"灰色/白色长方形遮挡"是 tabbar 周围透灰，压缩 chat-item
+   想"装下"。实测：用户原话"上下滑动会遮挡" + 截图显示卡片被 .page 底边切掉
+   + tabbar 上方有空白长方形——真根因是【.page 是滚动容器 + 滚动条被隐藏
+   （base.css .page { scrollbar-width:none }）+ 内容超出时被裁剪】。
+   用户看不到滚动条不知道能滚动，看到"被白条挡住"。
+   修复（两步，base.css 那边已改 .page 滚动条 → 4px 细显示，这里再调页面）：
+   ① background:var(--card-bg)：.page 默认透明会透出 .phone 渐变（之前灰 #f2f2f2
+      → "灰色遮挡"；现在白 #ffffff → "白色遮挡"），统一页面背景为 var(--card-bg)，
+      切缝和页面同色，灰/白条视觉信号消失。
+   ② padding-bottom:0：去掉 .page 自身 4px 底 padding + 之前加的 24px 留白，
+      消除 .page 底部空白长方形（之前用户看到 tabbar 上方一片白色就是这块）。
+   ③ 最后元素 margin-bottom:20px：内容底部留 20px 视觉间距，避免贴底（替代
+      之前被删的 .page padding-bottom:24px 的作用）。
+   选择器加 #page-chatcard / #page-setting 前缀只覆盖这两个常被吐槽的页面，
+   其他页面（聊天/字卡详情等）保持原 .page padding-bottom:4px 不动。
+   chat-item 不再压缩——用户在 720p 桌面窗口（.phone 720px / .page 588px）
+   下 10 张卡片就是放不下，必须滚动；细滚动条让用户能看到"可滚动"信号。 */
+#page-chatcard, #page-setting { background:var(--card-bg); padding-bottom:0; }
+#page-chatcard .chat-item:last-child,
+#page-setting .set-group:last-of-type,
+#page-setting .ver { margin-bottom:20px; }
+
+/* ===== 平板（html.tablet）底部导航同步放大 =====
+   桌面轴按平板放大后，23px 的默认导航图标与 64.3px 的栏高在平板上明显偏小
+   （实测栏高与图标尺寸 iOS/iPad 各机型与手机完全一致）。默认档 23→30px 只作
+   「未个性化」时的兜底：personalize.js 写过图标大小的用户是 html 元素上的内联
+   自定义属性，优先级高于本条样式，其显式选择不受影响。 */
+html.tablet { --tabbar-ico-size:30px; }
+html.tablet .tabbar { padding:10px 8px; }
+html.tablet .tabbar .tab { padding:14px 8px; border-radius:16px; }

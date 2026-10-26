@@ -1,0 +1,147 @@
+/* ===== 入站问卷（entry-quiz.js）=====
+   开屏「点击进入」后跳转的整页问卷——作为 .splash 内的子页面（.eqz-page），
+   与开屏同层（.splash 的 z-index 999），不新建遮罩、不改图层/z-index。
+   配色全部走 base.css 变量 → 深浅主题自动适配（同 applock.css 口径）。
+   #1556：答题页不显示对错（防本页试错）；提交后跳「结果页」告知错题与多选答案数，
+   结果页可「再答一次」（清空重答）或「返回开屏」；页头左上角随时可返回开屏。 */
+.splash.eqz-active .splash-box,
+.splash.eqz-active .splash-footcard { display: none; }
+
+.eqz-page {
+  flex: 1; min-height: 0; width: 100%; box-sizing: border-box;
+  display: flex; flex-direction: column;
+  text-align: left;
+}
+/* #1566：页头移入 .eqz-scroll 随内容滚动（不再固定挡屏），自身不再需要横向/顶部内边距（滚动区已带） */
+.eqz-head {
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--sp-line, rgba(0, 0, 0, .08));
+}
+.eqz-back {
+  appearance: none; -webkit-appearance: none;
+  display: inline-block; margin: 0 0 10px; padding: 3px 11px;
+  font-size: 11.5px; font-weight: 700; line-height: 1.6; letter-spacing: 1px;
+  color: var(--muted, #8a8a8a); background: none; cursor: pointer; touch-action: manipulation;
+  border: 1px solid var(--card-border, rgba(0, 0, 0, .1)); border-radius: 999px;
+}
+.eqz-title { font-size: 15px; font-weight: 800; color: var(--ink, #111); letter-spacing: 1px; text-align: center; }
+.eqz-sub { margin-top: 8px; font-size: 11.5px; line-height: 1.75; color: var(--muted, #8a8a8a); white-space: normal; }
+.eqz-progress { margin-top: 10px; font-size: 11px; font-weight: 700; color: var(--sp-ink, #111); text-align: center; letter-spacing: 1px; }
+
+/* 双视图：答题页（eqz-view-quiz）/ 结果页（eqz-view-result，提交后才出现） */
+.eqz-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.eqz-view[hidden] { display: none; }
+.eqz-view .eqz-scroll { flex: 1; }
+#eqz-view-result { overflow-y: auto; scrollbar-width: none; }
+#eqz-view-result::-webkit-scrollbar { display: none; }
+
+/* #1581：两层滚动容器删 legacy 动量旗标（-webkit- 前缀那条 touch 惯性开关）——#707/#1411 同族先例：
+   该旗标把容器切进老式滚动路径，部分内核上＝惯性滚动内容裁剪（滚到最后差约一屏出不来）。
+   现代内核 overflow:auto 默认即动量滚动，删除零损失。勿回流（build.mjs 配 absent 哨兵，同 #707g 口径）。
+   注：#1582 起「滚不到底」的根治改成须知页专属的整页单层滚动（见本文件末尾 #1582 段），
+   本文件其余 .eqz-* 规则保持原样——24 题问卷（entry-quiz）已在真机跑通，不再动它的高度链。 */
+
+.eqz-scroll {
+  min-height: 0; overflow-y: auto;
+  padding: 14px 18px 6px; scrollbar-width: none; -ms-overflow-style: none;
+}
+.eqz-scroll::-webkit-scrollbar { display: none; }
+
+.eqz-q { margin: 0 0 16px; }
+.eqz-qh { font-size: 12.5px; font-weight: 700; color: var(--ink, #111); line-height: 1.7; margin-bottom: 8px; }
+.eqz-idx { margin-right: 4px; }
+.eqz-tag {
+  display: inline-block; margin-right: 6px; padding: 0 6px; border-radius: 6px;
+  font-size: 10px; font-weight: 700; vertical-align: 1px;
+  color: var(--soft-ink, #555); background: var(--static-bg, rgba(0, 0, 0, .06));
+}
+.eqz-opt {
+  display: flex; gap: 8px; align-items: flex-start; width: 100%;
+  padding: 9px 11px; margin-bottom: 6px;
+  border: 1px solid var(--card-border, rgba(0, 0, 0, .1)); border-radius: 11px;
+  background: var(--card-bg-97, transparent);
+  font-size: 12.5px; line-height: 1.65; color: var(--soft-ink, #555);
+  font-family: inherit; text-align: left; cursor: pointer; position: relative;
+  appearance: none; -webkit-appearance: none; touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+}
+/* #1576：选项本体已从 label+input 换成纯 button（选中状态由 JS 的 picks 管）——
+   用户机型内核连视觉隐藏的 input 都会当文本框渲染（冒 value 数字＋点击弹输入法），
+   页面里不再放任何表单控件；下面的圆点/勾仍是 CSS 自绘（#1571 引入），照常生效 */
+/* #1571：选中指示器 CSS 自绘——圆点/勾由 ::before/::after 画，不依赖原生控件外观。
+   填充/描边走 .splash 的 --sp-ink（浅 #111 / 深 #e8e8e8 自动适配）；勾色用 --btn-ink 与填充对撞 */
+.eqz-opt::before {
+  content: ''; flex: 0 0 auto; width: 16px; height: 16px; margin: 2px 0 0; box-sizing: border-box;
+  border: 1.5px solid var(--card-border, rgba(0, 0, 0, .25)); background: transparent;
+}
+.eqz-opt.eqz-check::before { border-radius: 4px; }
+.eqz-opt.eqz-radio::before { border-radius: 50%; }
+.eqz-opt.is-sel::before { border-color: var(--sp-ink, #111); }
+.eqz-opt.eqz-radio.is-sel::before {
+  background: radial-gradient(circle, var(--sp-ink, #111) 0, var(--sp-ink, #111) 2.5px, transparent 3px);
+}
+.eqz-opt.eqz-check.is-sel::before { background: var(--sp-ink, #111); }
+.eqz-opt.eqz-check.is-sel::after {
+  content: ''; position: absolute; left: 15px; top: 14px; width: 8px; height: 4px; box-sizing: border-box;
+  border-left: 2px solid var(--btn-ink, #fff); border-bottom: 2px solid var(--btn-ink, #fff);
+  transform: rotate(-45deg); transform-origin: center;
+}
+.eqz-opt-t { flex: 1; white-space: normal; word-break: break-word; }
+.eqz-opt.is-sel { border-color: var(--sp-ink, #111); background: var(--sp-soft, rgba(17, 17, 17, .055)); color: var(--ink, #111); }
+
+.eqz-foot {
+  /* #1584：底部同样接全站那条避让链（--mochi-safe-bottom 优先、env 回落）——边缘到边形态下
+     env 恒 0、手势条压着底栏，「上一步 / 下一题」只剩半颗可按。常规形态变量未设＝与改动前逐字一致。 */
+  padding: 10px 18px calc(16px + var(--mochi-safe-bottom, env(safe-area-inset-bottom, 0px)));
+  border-top: 1px solid var(--sp-line, rgba(0, 0, 0, .08));
+}
+.eqz-note { margin-bottom: 8px; font-size: 11.5px; line-height: 1.6; color: var(--muted, #8a8a8a); white-space: normal; }
+.eqz-btn {
+  width: 100%; padding: 12px; border: none; border-radius: 12px;
+  background: var(--btn-bg, #111); color: var(--btn-ink, #fff);
+  font-size: 15px; font-weight: 700; cursor: pointer; touch-action: manipulation;
+}
+.eqz-btn:active { transform: scale(.98); opacity: .9; }
+.eqz-btn-ghost {
+  margin-top: 8px; background: none; color: var(--soft-ink, #555);
+  border: 1px solid var(--card-border, rgba(0, 0, 0, .1));
+}
+
+/* 结果页（提交后） */
+.eqz-rs { padding: 20px 18px 8px; }
+.eqz-rs-t { font-size: 17px; font-weight: 800; margin: 0 0 12px; }
+.eqz-rs-ok .eqz-rs-t { color: var(--ok-ink, #1c7c3c); }
+.eqz-rs-bad .eqz-rs-t { color: var(--danger-ink, #a32d2d); }
+.eqz-rs-d { font-size: 12px; line-height: 1.7; color: var(--muted, #8a8a8a); margin: 0 0 12px; white-space: normal; }
+.eqz-rs-list { margin: 0 0 16px; }
+.eqz-rs-li {
+  padding: 9px 12px; margin-bottom: 8px; font-size: 12.5px; line-height: 1.6;
+  color: var(--soft-ink, #555);
+  border: 1px solid var(--danger-ink, #a32d2d); border-radius: 11px;
+  white-space: normal; word-break: break-word;
+}
+.eqz-rs-n { font-weight: 800; color: var(--danger-ink, #a32d2d); margin-right: 6px; }
+
+/* ===== #1583（2026-10-22 作者：要覆盖全部机型）=====
+   不再把「能滚到底」当成前提：须知页改【一题一屏】——任何时刻只有一屏内容
+   （规则说明 / 单题 / 最终确认），底部操作条是 .eqz-view 的固定 flex 子元素、永不参与滚动。
+   于是哪怕某台机器内层滚动完全失效、或可视区被地址栏/系统字体挤小，
+   用户也能靠「下一步」逐题走完，第 8 题与提交按钮必然可达（内容本身就不超过一屏）。
+   滚动仅作兜底（系统字体超大/横屏时才用得上）。
+   注：#1582 那版「整页流式滚动」已撤——它让底部操作条随内容下移，反而在长文本步失效；
+   24 题问卷在真机上跑通的正是这条 flex 链，本页回到同一条链，只把内容切短。 */
+.splash.rules-open { overflow-y: auto; }
+/* 靠 hidden 切屏：必须配救援，否则个别内核/[hidden] 被 display 覆盖＝所有题一起显示 */
+.splash.rules-open > #entry-rules-page [hidden] { display: none !important; }
+.splash.rules-open > #entry-rules-page #nrz-prev[disabled] { opacity: .32; }
+
+/* ===== #1584（2026-10-22 作者报障：入站问卷「只看得到选项、看不到题目，完全无法答题」）=====
+   两套问卷（入站须知 #1583 / 24 题入站问卷 #1550）都是【直接挂在 .splash 上的整页层】，
+   不像开屏正文那样身处 .splash-box、天生继承那份 30px 顶内边距。于是在「页面画进系统状态栏区、
+   env(safe-area-inset-top) 恒报 0」的形态（Android 15+ 边缘到边 / 内嵌浏览器 / 主屏全屏，
+   与 #236/#530 同族）上，题目标题正好落在状态栏底下：截图里只剩几个选项、上一片黑，
+   而一屏内容不需要滚动＝滚也滚不出来。
+   顶部改用与 .phone 同一条避让链：--mochi-safe-top（device.js/mobile-adapt.js 实测写入）优先、
+   env() 回落。该变量在常规形态下是「未设」⇒ 本条为 0，24 题问卷与须知页在正常机上零变化；
+   只有真的被系统栏盖住的形态才会让出那一条。 */
+.splash.eqz-active > .eqz-page { padding-top:var(--mochi-safe-top, env(safe-area-inset-top, 0px)); }

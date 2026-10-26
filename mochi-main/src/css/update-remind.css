@@ -1,0 +1,44 @@
+/* ===== 线上有新版 · 强制刷新提醒弹窗（update-remind.js）=====
+   #splash 内自绘遮罩卡（开屏期间 openModal 不可见，见 js 注释）；
+   配色全部走 base.css 变量 → 深浅主题自动适配（同 entry-quiz.css 口径）。 */
+/* #1582：改 position:fixed —— 须知页状态下 .splash 自己会滚动（整页单层滚动），
+   absolute;inset:0 的遮罩会跟着内容一起滚走＝弹窗跑到可视区外、用户看着像「没弹」。
+   .splash 无 transform/filter 祖先，fixed 直接锚定视口，任何滚动位置都盖满屏。 */
+.ur-wrap {
+  position: fixed; inset: 0; z-index: 30;
+  display: flex; align-items: center; justify-content: center;
+  padding: 22px; box-sizing: border-box;
+  background: rgba(0, 0, 0, .38);
+}
+.ur-card {
+  width: 100%; max-width: 330px; max-height: 80%;
+  /* #1582：删 legacy 动量旗标（同 #707/#1411/#1581 清理口径）——部分内核上它会让卡片内容
+     滚不动/被裁剪＝正文看不全、刷新按钮点不到；现代内核 overflow:auto 默认即动量。 */
+  overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none;
+  padding: 18px 16px; box-sizing: border-box; text-align: left;
+  background: var(--card-bg-97, rgba(255, 255, 255, .97));
+  border: 1px solid var(--card-border, rgba(0, 0, 0, .1));
+  border-radius: 16px; box-shadow: 0 12px 34px rgba(0, 0, 0, .18);
+}
+.ur-card::-webkit-scrollbar { display: none; }
+.ur-t { font-size: 14.5px; font-weight: 800; color: var(--ink, #111); line-height: 1.5; letter-spacing: .5px; text-align: center; }
+.ur-d { margin-top: 10px; font-size: 12px; line-height: 1.75; color: var(--soft-ink, #555); white-space: normal; word-break: break-word; }
+.ur-go {
+  width: 100%; margin-top: 14px; padding: 12px; border: none; border-radius: 12px;
+  background: var(--btn-bg, #111); color: var(--btn-ink, #fff);
+  font-size: 14px; font-weight: 700; cursor: pointer; touch-action: manipulation;
+}
+.ur-go:active { transform: scale(.98); opacity: .9; }
+.ur-go[disabled] { opacity: .55; transform: none; cursor: default; }
+/* #1577 刷新状态行（点击后才出现）：开屏期间 toast 被 splash 盖住看不见，过程反馈必须在卡内 */
+.ur-st {
+  display: none; margin-top: 10px; padding: 8px 10px; box-sizing: border-box;
+  background: var(--static-bg, rgba(0, 0, 0, .04)); border-radius: 10px;
+  font-size: 11.5px; line-height: 1.65; color: var(--soft-ink, #555);
+  white-space: normal; word-break: break-word; text-align: left;
+}
+.ur-st.show { display: block; }
+.ur-later {
+  width: 100%; margin-top: 8px; padding: 8px; background: none; border: none;
+  font-size: 11.5px; color: var(--muted, #8a8a8a); cursor: pointer; touch-action: manipulation;
+}
